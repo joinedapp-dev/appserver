@@ -1,0 +1,147 @@
+Add tables based on what you want to allow your users to do and the related data you need to store as a result. Some example tables:
+
+'user_account': User account information (e-mail address, password) - referenced by user ID
+'user_profile': Basic user profile information - referenced by user ID
+'user_status': User status message - referenced by user ID
+I have the sense that this is your first major database application, and if so, you need to learn more about database design in general before you take on creating an application like this. There are many things to consider when designing a database schema and designing it well from the start is key. The core of your application will rely on how well your data is organized and accessible, so ensure you spend enough time developing a good design.
+
+-----------------
+
+You can figure out the fields/queries and everything else, but the basic tables are very simple:
+
+User Table
+Stores the User's Login/Password/Access Information
+User Info Table
+Stores the any additional data that the user might enter (Full Name, Birthday, etc)
+Relationship Table
+Stores the relationships between user A and User B
+Post Table
+Depending on what type of media your users will be posting in, this gives a list of all the messages posted, with a User ID attached
+That is the basis of it and this layout is probably sufficent enough to mock Twitter (which is a very simple site).
+
+Anything additional you should probably use your brain to figure out. It really isn't that hard. Facebook didn't become popular for creating a good database schema.
+
+------------------
+
+These are the steps you should follow for initial database design.
+
+First, list down all the "objects" you want to store, such as users, posts, relationships and so on.
+
+Second, figure out, for each of those, what information you want to store (user name, password, full name, address, ...).
+
+Then design your database tables following the third normal form.
+
+Every column in a table should be an attribute of the key.
+Every column in a table should be an attribute of the entire key.
+Every column in a table should be an attribute of only the key.
+Database design should always be done in third normal form, reverting to other forms if there is a performance problem and you understand the ramifications of reversion. You can generally do this safely (and efficiently) with the proper application of computed fields or triggers.
+
+As an example, one thing you should not do is to try and model relationships in the users table. A row in that table will have the user name as the key and a relationship depends on two user names, so that would violate rule 3.
+
+-------------------
+
+Barry Williams hosts a library of free data models, which he offers as starting points for all sorts of applications. His portfolio includes a suggested model for a social networking site; that page also includes links to some supporting information. Find out more.
+
+http://www.databaseanswers.org/data_models/social_networking/index.htm
+
+-------------------
+
+There will be two main tables for user module i.e.
+
+tblUser(userId(P key), other detail columns)
+tblContacts(UserId(F key from tbluser),ContactId(F key from tbluser) and both userid and contactid will be primary key, ie. composite key)
+
+-------------------
+
+This is how I would model this:
+
+Users(id, etc)
+
+This is the user list. It contains only user data. The PK will be the id, so there will be an implicit index there
+
+Groups(id, etc)
+
+This is the group list. It contains only group data. The PK will be theid, so there will be an implicit index there
+
+User_Groups(userId, groupId, etc)
+
+This is the way to link users to groups. It needs to have the foreing keys to the users and groups and you can add any additional data to it, for instance, date when the user joined the group. The PK here will be a compound key between userId and groupId, so the index will be userId and groupId. You will also want to have an additional index in the groupId, because the "main order" will be given by userId, not by groupId
+
+Posts(id, createdByUserId, belongsToGroupId, etc)
+
+This is the lists of posts. Posts are created by only a user and belong to only one group. To display a post you'll join createdByUserId with Users table (to display the name of the user who created the post). Additionally, you'll want to check if the user who wants to see the post is actually allowed to see it. So, you'll go to the User_Groups table and use a WHERE clause similar to $currentUserId = users_groups.userId and $currentPostBelongsToGroupId = users_groups.groupId (OR you can join the table on post.belongsToGroupId = user_groups.groupId).
+
+This is the general idea. Now, to focus on "optimize the database for querying all posts that a given user is allowed to see" you should basically do what I stated in the Posts entity description. As you're not looking for a particular post you'll have to join Posts with User_Groups (this join will use the groupId index created on the User_Groups entity) and then use the WHERE clause stated there too. That clause will use the compound primary key created on that entity. And that's it. It seems to be a fully indexed path.
+
+Now, why didn't I add the link entity you've got on your question? Because I've not idea what it is and you didn't answer my comment on top asking what it was. If it was a link between 2 users then it shouldn't belong to a group because users belong to groups separately, not in pairs. Apart from that, if the link is what I assumed then it wouldn't affect at all the performance on how a user see his/her own allowed posts. Possibly related question to the link entity
+
+Hope this helps or guide you to a better solution :)
+
+-------------------------
+
+table user:
+PK    id
+      username
+      password
+      ...
+
+table user_profile
+FK    userid
+      first name
+      last name
+      gender
+      joinedsince
+      ...      
+
+table app
+PK    id
+      userid
+      ...
+
+table app_profile
+FK    appid  (
+      name
+      description
+      category
+      ...
+
+table post
+PK    id
+FK    userid (this is user who created post from "user_account" table)
+FK    groupid (this is group for which post was intended to from "group" table)
+      createdat
+      ...     
+
+table group
+PK    id
+FK    appid
+      name
+      createdat
+      ...
+
+table user_group
+FK    userid   (this is user who belongs to group in next column, from "user" table)
+FK    groupid  (this is group to which user in previous column belongs to, from "group" table.
+      write_permission
+
+table app_group
+FK    appid    (this is app that can post to group in next column, from "app" table)
+FK    groupid  (this is group to which app in previous column can post to, from "group" table.
+
+table user_requests
+FK    userid_from
+FK    appid_to
+
+table app_requests
+FK    appid_from
+FK    appid_to
+
+table app_user_invites
+FK    appid_from
+FK    userid_to
+
+table app_invite
+FK    appid_from
+FK    appid_to
+            
+      	
