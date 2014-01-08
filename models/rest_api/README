@@ -1,0 +1,8 @@
+
+Verb	URI	Action
+GET	/tableName	Retrieve all wines
+GET	/tableName/id	Retrieve the wine with the specified _id
+POST	/tableName	Add a new wine
+PUT	/tableName/id	Update wine with the specified _id
+DELETE	/tableName/id	Delete the wine with the specified _id
+
