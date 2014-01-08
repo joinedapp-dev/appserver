@@ -1,0 +1,5 @@
+To run need to setup env variable:
+
+export DATABASE_URL='mysql://<username>:<password>@<host>:<port>/<dbname>'
+
+
