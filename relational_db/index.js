@@ -1,5 +1,7 @@
 var express = require('express');
 var mysql = require('mysql');
+var fs = require('fs');
+var path = require('path');
 
 var app = express();
 app.use(express.logger());
@@ -45,8 +47,17 @@ if (process.env.DATABASE_URL) {
 	// check connection
 	sq.query('SHOW TABLES').success(function(result) {
 	    console.log("MySQL database connect succeeded, list of tables:\n\t" + result);
+	    for (var i in result){
+		console.log("Table '" + result[i] + "':");
+		var q = "DESCRIBE " + result[i];
+		sq.query(q).success(function(schema){
+		    console.log(JSON.stringify(schema, null, 4));
+		}).error(function(err){
+		    console.log("ERR: Cannot get schema with error '" + err + "'");
+		});
+	    }
 	}).error(function(err) {
-	    console.log("MySQL database connection failed with error: '" + err + "'");
+	    console.log("MySQL database connection failed with error '" + err + "'");
 	});
 
 /*
@@ -83,12 +94,9 @@ if (process.env.DATABASE_URL) {
 
 	global.db = {
             Sequelize: Sequelize,
-            sequelize: sq /*,
-            Order: sq.import(__dirname + '/order')
-		*/
-        };
-
-	
+            sequelize: sq,
+            User: sq.import(__dirname + '/user')
+	};
     } else {
 	console.log("ERROR: Unable to parse env variable 'DATABASE_URL'...");
 	console.log("       Required format: 'mysql://<username>:<password>@<host>:<port>/<dbname>'");
@@ -96,6 +104,27 @@ if (process.env.DATABASE_URL) {
 } else {
     console.log("ERROR: Cannot find env variable 'DATABASE_URL' for MySQL info");
 }
+
+/*
+// create tables
+var dir = __dirname + '/schema/';
+var files = fs.readdirSync(dir);
+for(var i in files){
+    console.log(files[i]);
+    if (path.extname(files[i]) == ".sql"){
+	console.log("===" + dir + files[i]);
+    }
+    var schema = fs.readFileSync(dir + files[i], 'utf8');
+    if (schema){
+	console.log("SCHEMA = " + schema);
+	sq.query(schema).success(function(result) {
+            console.log("Successfully created table");
+	}).error(function(err) {
+            console.log("Failed to create table with error: '" + err + "'");
+	});
+    }
+}
+*/
 
 module.exports = global.db;
 
