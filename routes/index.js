@@ -6,8 +6,9 @@ var ph      = require('password-hash')
 var fs = require('fs');
 
 module.exports.site = function(request, response) {
-    var data = fs.readFileSync(__dirname + '/../index.html').toString();
-    response.send(data);
+    //var data = fs.readFileSync(__dirname + '/../index.html').toString();
+    //response.send(data);
+    response.render('home.jade');
 };
 
 module.exports.all_users = function(request, response) {
