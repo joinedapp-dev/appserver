@@ -18,3 +18,15 @@ html
          div#nbUsersDiv
             p Number of connected user(s):
                span#nbUsers
+         table(class="table table-striped")#subscriberTable
+           thead
+             th Userid
+             th Email
+             th Updated
+           tbody
+             - for (var i=0; i<subscribers.length; i++){
+                tr
+                     td= subscribers[i].id
+                     td= subscribers[i].email
+                     td= subscribers[i].createdAt
+             - }

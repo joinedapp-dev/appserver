@@ -1,9 +1,8 @@
 // Define routes for Joinedapp REST service 
 var ph      = require('password-hash')
+  , fs      = require('fs')
+  , msg     = require('../messaging')
   , db      = require('../relational_db');
-
-
-var fs = require('fs');
 
 module.exports.site = function(request, response) {
     //var data = fs.readFileSync(__dirname + '/../index.html').toString();
@@ -87,8 +86,20 @@ module.exports.add_user = function(request, response) {
 		err:    err.code
             });
             //response.send("error retrieving users");
+	}).success(function(result){
+	    response.send("POST OK");
+	    // update website with new user added
+	    // ... first query mysql table
+	    global.db.User.find({
+		where: {
+		    email: request.body.email
+		}
+            }).success(function(user) {
+		if (user){
+		    msg.updateTable(user.id, user.email, user.createdAt);
+		}
+	    });
 	});
-	response.send("POST OK");
     }else{
 	response.send("Error: POST missing email and/or password");
     }

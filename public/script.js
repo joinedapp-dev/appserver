@@ -1,7 +1,5 @@
 var socket = io.connect();
 
-console.log("Inside script.js");
-
 function addMessage(msg, pseudo) {
     $("#chatEntries").append('<div class="message"><p>' + pseudo + ' : ' + msg + '</p></div>');
 }
@@ -18,12 +16,17 @@ function sentMessage() {
 function setPseudo() {
    if ($("#pseudoInput").val() != "")
     {
-	socket.emit('setPseudo', $("#pseudoInput").val());
+	socket.emit('setPseudo', $("#pseudoInput").val());	
 	$('#chatControls').show();
 	$('#pseudoInput').hide();
 	$('#pseudoSet').hide();
     }
 }
+
+socket.on('newSubscribedUser', function(data){
+    // add row to table
+    $('#subscriberTable tr:last').after('<tr><td>'+data.id+'</td><td>'+data.email+'</td><td>'+data.createdAt+'</td></tr><');
+});
 
 socket.on('nbUsers', function(msg) {
     $("#nbUsers").html(msg.nb);
