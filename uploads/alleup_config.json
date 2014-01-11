@@ -1,0 +1,24 @@
+{
+    "variants": {
+        "resize": {
+            "mini" : "300x200",
+            "preview": "800x600"
+        },
+        "crop": {
+            "thumb": "200x200"
+        }
+    },
+
+    "storage": {
+        "aws": {
+            "key" : "AWS_KEY",
+            "secret" : "AWS_SECRET",
+            "bucket" : "aws_bucket"
+        },
+        "dir": {
+            "path" : "./public/images/"
+        }
+    }
+}
+
+

@@ -5,13 +5,14 @@ var async   = require('async')
   , https   = require('https')
   , jade    = require('jade')
   , routes  = require('./routes')
+  , uploads = require('./uploads')
   , db      = require('./relational_db')
   , msg     = require('./messaging');
 
 var app = express();
 var server = http.createServer(app);
 
-app.use(express.bodyParser());
+//app.use(express.bodyParser());  // remove for 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 //app.set('view engine', 'jade');
@@ -29,6 +30,8 @@ app.get('/', routes.site);
 app.get('/users', routes.all_users);
 app.get('/user/:email', routes.get_user);
 app.post('/user', routes.add_user);
+app.post('/upload', uploads.add_file);
+app.get('/data/:filename', uploads.get_file);
 app.put('/user', routes.update_user);
 app.delete('/user', routes.delete_user);
 

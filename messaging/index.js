@@ -12,6 +12,11 @@ module.exports.updateTable = function(id, email, createdAt){
     io.sockets.emit('newSubscribedUser', {id: id, email: email, createdAt: createdAt});
 };
 
+module.exports.updateFileSubmissionProgress = function(percentage){
+    console.log("Files progress: " + percentage);
+    // need username here to emit to the right client
+}
+
 var users = 0;
 var pseudoArray = ['admin'];  // block the admin username
 
