@@ -6,12 +6,37 @@ var fs      = require('fs')
   , msg     = require('../messaging')
   , db      = require('../relational_db');
 
-var alleup = new Alleup({storage : "aws", config_file: __dirname + "/alleup_config.json"})
+
+// create config file for uploading to S3 bucket
+var config = JSON.parse(fs.readFileSync(__dirname + "/alleup_config.json.0"));
+console.log("CONFIG FILE = " + JSON.stringify(config, null, 4));
+config.storage.aws.key = process.env.AWS_KEY;
+config.storage.aws.secret = process.env.AWS_SECRET;
+fs.writeFileSync(__dirname + "/alleup_config.json", JSON.stringify(config, null, 4));
+
+module.exports.config = config;
+
+// create alleup object
+var alleup = new Alleup({storage : "dir", config_file: __dirname + "/alleup_config.json"})
 
 module.exports.add_file = function(request, response){
-    console.log("Inside add_file");
 
-    var f = new form.IncomingForm(/* {uploadDir: __dirname + '../data'} */);
+    // uploading, resizing and then moving to S3
+    alleup.upload(request, response, function(err, file, response){
+	if (err){
+	    console.log("alleup upload error: " + err);
+	    response.send({error: err});
+	}else{
+            console.log("Successfully uploaded: " + file);
+	    response.send({filepath: config.storage.dir.path + "preview_" + file, error: ""});
+	}
+    });
+
+
+/*
+    // uploading to file system and then moving it
+    var f = new form.IncomingForm(// {uploadDir: __dirname + '../data'} 
+                                  );
 
     f
 	.on('error', function(err) {
@@ -51,16 +76,6 @@ module.exports.add_file = function(request, response){
 	    console.log("done file tranfer");
 	});
 
-    // loading directly to S3
-/*    
-    alleup.upload(req, res, function(err, file, res){
-	
-	console.log("FILE UPLOADED: " + file);
-	// THIS YOU CAN SAVE FILE TO DATABASE FOR EXAMPLE
-	res.end();
-    });
-*/
-
     f.parse(request, function(err, fields, files) {
 	console.log("fields = " + JSON.stringify(fields));
 	console.log("files = " + JSON.stringify(files));
@@ -88,10 +103,11 @@ module.exports.add_file = function(request, response){
 	    response.send({filepath: destination});
 	});
     });
+*/
 };
 
 module.exports.get_file = function(request, response){
-    var fname = __dirname + "/../data/" + request.params.filename;
+    var fname = __dirname + "/../" + config.storage.dir.path + "/" + request.params.filename;
     console.log("filename = " + fname);
     response.sendfile(path.resolve(fname));
 }

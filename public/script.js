@@ -213,12 +213,12 @@ $(function() {
 	    $(this).ajaxSubmit({                                                                                                                 
 		
 		error: function(xhr) {
-		    status('Error: ' + xhr.status);
+		    console.log('Error xhr: ' + JSON.stringify(xhr));
 		},
 		
 		success: function(response) {
 		    if(response.error) {
-			status('Opps, something bad happened');
+			console.log('Opps, something bad happened');
 			return;
 		    }
 		    
