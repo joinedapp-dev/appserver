@@ -13,7 +13,7 @@ var async   = require('async')
 var app = express();
 var server = http.createServer(app);
 
-//app.use(express.bodyParser());  // remove for 
+//app.use(express.bodyParser());  // DO NOT define globally, will screw up form/multi-part
 app.set('views', __dirname + '/views');
 //app.set('view engine', 'ejs');
 app.set('view engine', 'jade');
@@ -27,14 +27,14 @@ app.set('port', process.env.PORT || 8080);
 var io = msg.create(server);
 
 // define routes
-app.get('/', routes.site);
-app.get('/users', routes.all_users);
-app.get('/user/:email', routes.get_user);
-app.post('/user', routes.add_user);
-app.post('/upload', uploads.add_file);
-app.get(path.resolve("/" + uploads.config.storage.dir.path + ':filename'), uploads.get_file);
-app.put('/user', routes.update_user);
-app.delete('/user', routes.delete_user);
+app.get('/', express.bodyParser(), routes.site);
+app.get('/users', express.bodyParser(), routes.all_users);
+app.get('/user/:email', express.bodyParser(), routes.get_user);
+app.post('/user', express.bodyParser(), routes.add_user);
+app.post('/upload', uploads.add_file);  // form.muti-part do not use bodyParser
+app.get(path.resolve("/" + uploads.config.storage.dir.path + ':filename'), express.bodyParser(), uploads.get_file);
+app.put('/user', express.bodyParser(), routes.update_user);
+app.delete('/user', express.bodyParser(), routes.delete_user);
 
 // start socket events loop
 msg.startEventLoop();
@@ -64,6 +64,7 @@ db.sequelize.sync().complete(function(err) {
 	server.listen(app.get('port'), function() {
 	    console.log("Listening on " + app.get('port'));
 	});
+
     }
 });
 

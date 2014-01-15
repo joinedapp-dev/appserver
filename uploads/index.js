@@ -1,8 +1,10 @@
-// Define routes for Joinedapp REST service 
+// Define routes for Joinedapp REST service AAA
 var fs      = require('fs')
   , form    = require('formidable')
   , path    = require('path')
   , Alleup  = require('alleup')
+  , AWS     = require('aws-sdk')
+  , mime    = require('mime')
   , msg     = require('../messaging')
   , db      = require('../relational_db');
 
@@ -10,16 +12,80 @@ var fs      = require('fs')
 // create config file for uploading to S3 bucket
 var config = JSON.parse(fs.readFileSync(__dirname + "/alleup_config.json.0"));
 console.log("CONFIG FILE = " + JSON.stringify(config, null, 4));
-config.storage.aws.key = process.env.AWS_KEY;
-config.storage.aws.secret = process.env.AWS_SECRET;
+config.storage.aws.key = process.env.AWS_ACCESS_KEY_ID;
+config.storage.aws.secret = process.env.AWS_SECRET_ACCESS_KEY;
 fs.writeFileSync(__dirname + "/alleup_config.json", JSON.stringify(config, null, 4));
 
 module.exports.config = config;
 
+
+
+// creae aws S3 object'
+//AWS.config.region = 'us-west-2';
+AWS.config.update({ accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
+		    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY });
+var s3 = new AWS.S3();
+console.log("going into readFile");
+var file_to_upload = __dirname + "/../public/images/preview_1389731399517.jpg";
+fs.readFile(file_to_upload, function (err, data) {
+    if (err) { throw err; }
+    console.log("Going into s3 putObject()");
+    var mime_type = mime.lookup(file_to_upload);
+    var file_path = path.normalize(config.storage.dir.path + "/" + path.basename(file_to_upload));
+    console.log("=============================== mime type = " + mime_type);
+    console.log("=============================== file path = " + file_path);
+    s3.client.putObject({
+	Bucket: 'com-joinedapp-uploads',
+	Key: file_path,
+//	ContentType: mime_type,
+	Body: data
+    }, function(err2, data2){
+	if (err2) {
+	    console.log("++++++++++++++++++++++++++++++ Error in putObject: " + err2);
+	}else{
+	    console.log("++++++++++++++++++++++++++++++ putObject succeeded");
+	}
+    });
+//.success(function(resp){
+//	console.log("Successfully uploaded package.");
+  //  });
+});
+
 // create alleup object
 var alleup = new Alleup({storage : "dir", config_file: __dirname + "/alleup_config.json"})
 
+
+s3.listBuckets(function(err, data){
+    if (err){
+	console.log("S3 error: " + err);
+    }else{
+	for (var index in data.Buckets){
+	    var bucket = data.Buckets[index];
+	    console.log("Bucket: ", bucket.Name, ' : ', bucket.CreationDate);
+	}
+    }
+});
+/*
+var file_source = fs.createReadStream(__dirname + "/../public/images/preview_1389731399517.jpg");
+var s3_stream = s3.getObject({Bucket: 'com-joinedapp-uploads', Key: "myimage.jpg"}).createWriteStream();
+file_source.pipe(s3_stream);
+*/
+/*
+~s3_stream.pipe(file_source);
+s3_stream.on('error', function(err){
+    console.log("S3 STREAM ERROR: " + err);
+});
+s3_stream.on('close', function(){
+    console.log("============ DONE");
+});
+*/
+
+//s3.getObject({Bucket: 'com-joinedapp-uploads', Key: "myimage.jpg"}).createReadStream().pipe(file_source);
+ 
+
+
 module.exports.add_file = function(request, response){
+    console.log("inside add file");
 
     // uploading, resizing and then moving to S3
     alleup.upload(request, response, function(err, file, response){
@@ -31,7 +97,6 @@ module.exports.add_file = function(request, response){
 	    response.send({filepath: config.storage.dir.path + "preview_" + file, error: ""});
 	}
     });
-
 
 /*
     // uploading to file system and then moving it

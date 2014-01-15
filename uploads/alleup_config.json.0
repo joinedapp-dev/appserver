@@ -13,10 +13,10 @@
         "aws": {
             "key" : "AWS_KEY",
             "secret" : "AWS_SECRET",
-            "bucket" : "com.joinedapp.uploads"
+            "bucket" : "com-joinedapp-uploads"
         },
         "dir": {
-            "path" : "./public/images/"
+            "path" : "public/images/"
         }
     }
 }
