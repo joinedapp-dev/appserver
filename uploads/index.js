@@ -18,83 +18,124 @@ fs.writeFileSync(__dirname + "/alleup_config.json", JSON.stringify(config, null,
 
 module.exports.config = config;
 
-
-
-// creae aws S3 object'
+// create aws S3 object
 //AWS.config.region = 'us-west-2';
 AWS.config.update({ accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
 		    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY });
 var s3 = new AWS.S3();
-console.log("going into readFile");
-var file_to_upload = __dirname + "/../public/images/preview_1389731399517.jpg";
-fs.readFile(file_to_upload, function (err, data) {
-    if (err) { throw err; }
-    console.log("Going into s3 putObject()");
-    var mime_type = mime.lookup(file_to_upload);
-    var file_path = path.normalize(config.storage.dir.path + "/" + path.basename(file_to_upload));
-    console.log("=============================== mime type = " + mime_type);
-    console.log("=============================== file path = " + file_path);
-    s3.client.putObject({
-	Bucket: 'com-joinedapp-uploads',
-	Key: file_path,
-//	ContentType: mime_type,
-	Body: data
-    }, function(err2, data2){
-	if (err2) {
-	    console.log("++++++++++++++++++++++++++++++ Error in putObject: " + err2);
-	}else{
-	    console.log("++++++++++++++++++++++++++++++ putObject succeeded");
-	}
-    });
-//.success(function(resp){
-//	console.log("Successfully uploaded package.");
-  //  });
-});
 
 // create alleup object
 var alleup = new Alleup({storage : "dir", config_file: __dirname + "/alleup_config.json"})
 
-
-s3.listBuckets(function(err, data){
-    if (err){
-	console.log("S3 error: " + err);
-    }else{
-	for (var index in data.Buckets){
-	    var bucket = data.Buckets[index];
-	    console.log("Bucket: ", bucket.Name, ' : ', bucket.CreationDate);
+var uploadToS3 = function(file_to_upload, callback){
+    console.log("going into readFile");
+    
+    fs.readFile(file_to_upload, function (err, data) {
+	if (err){ 
+	    callback("Failed to load file with error: " + err);
 	}
-    }
-});
-/*
-var file_source = fs.createReadStream(__dirname + "/../public/images/preview_1389731399517.jpg");
-var s3_stream = s3.getObject({Bucket: 'com-joinedapp-uploads', Key: "myimage.jpg"}).createWriteStream();
-file_source.pipe(s3_stream);
-*/
-/*
-~s3_stream.pipe(file_source);
-s3_stream.on('error', function(err){
-    console.log("S3 STREAM ERROR: " + err);
-});
-s3_stream.on('close', function(){
-    console.log("============ DONE");
-});
-*/
+	console.log("Going into s3 putObject()");
+	var mime_type = mime.lookup(file_to_upload);
+	var file_path = path.normalize(config.storage.dir.path + "/" + path.basename(file_to_upload));
+	var body_stream = fs.createReadStream(file_to_upload);
+	console.log("=============================== mime type = " + mime_type);
+	console.log("=============================== file path = " + file_path);
+	s3.client.putObject({
+	    Bucket: 'com-joinedapp-uploads',
+	    Key: file_path,
+	Body: body_stream
+	}, function(err2, data2){
+	    if (err2) {
+		callback("Failed to upload file to S3 with error: " + err2);
+	    }else{
+		callback();
+	    }
+	});
+    });
+}
 
-//s3.getObject({Bucket: 'com-joinedapp-uploads', Key: "myimage.jpg"}).createReadStream().pipe(file_source);
- 
-
+// get list of S3 buckets
+var listS3Buckets = function(){
+    s3.listBuckets(function(err, data){
+	if (err){
+	    console.log("S3 error: " + err);
+	    return;
+	}else{
+	    for (var index in data.Buckets){
+		var bucket = data.Buckets[index];
+		console.log("Bucket: ", bucket.Name, ' : ', bucket.CreationDate);
+	    }
+	    return data.Buckets;
+	}
+    });
+}
 
 module.exports.add_file = function(request, response){
     console.log("inside add file");
-
+    
     // uploading, resizing and then moving to S3
     alleup.upload(request, response, function(err, file, response){
 	if (err){
-	    console.log("alleup upload error: " + err);
+	    console.log("alleup error: " + err);
 	    response.send({error: err});
 	}else{
-            console.log("Successfully uploaded: " + file);
-	    response.send({filepath: config.storage.dir.path + "preview_" + file, error: ""});
+            console.log("alleup successfull: " + file);
+	    // find all files resized and cropped
+	    var files_to_be_uploaded = [];
+	    fs.readdir(config.storage.dir.path, function(err, files) {
+		if (err){
+		    console.log("Cannot list directory: " + config.storage.dir.path);
+		    return;
+		}
+		files.filter(function(f){
+		    return f.match(file + "$");
+		})
+		    .forEach(function(f){
+			files_to_be_uploaded.push(path.resolve(__dirname + "/../public/images/" + f));
+		    })
+
+		for (var i in files_to_be_uploaded){
+		    console.log("FILE: " + files_to_be_uploaded[i]);
+		}
+		
+		var num_uploads = 0;
+		var s3_upload_callback = function(err){
+		    if (err){
+			console.log("Error in uploading to S3 bucket: " + err);
+			response.send({filepath: "", error: err});
+			return;
+		    }else{
+			// delete local file
+			console.log("Deleting file " + files_to_be_uploaded[num_uploads]);
+			fs.unlink(files_to_be_uploaded[num_uploads], function(err){
+			    if (err){
+				console.log("Error deleting uploaded file: " + err);
+				throw err;
+			    }
+			});
+			++num_uploads;
+			if (num_uploads == files_to_be_uploaded.length){
+			    var params = {Bucket: 'com-joinedapp-uploads', Key: "public/images/preview_" + file, Expires: 900};
+			    s3.getSignedUrl('getObject', params, function (err3, url) {
+				if (err3){
+				    console.log("ERROR: " + err3);
+				    response.send({filepath: "", error: err3});
+				}
+				console.log("The URL is", url);
+				response.send({filepath: url /*config.storage.dir.path + "preview_" + file*/, error: ""});
+			    });
+			}else{
+			    uploadToS3(path.resolve(files_to_be_uploaded[num_uploads]), s3_upload_callback);
+			}
+		    }
+		}
+		
+		if (files_to_be_uploaded.length >0)
+		{
+		    // upload files to S3 one after the other
+		    uploadToS3(path.resolve(files_to_be_uploaded[0]), s3_upload_callback);
+		}
+	    })
 	}
     });
 

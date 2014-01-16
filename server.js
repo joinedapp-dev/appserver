@@ -14,6 +14,7 @@ var app = express();
 var server = http.createServer(app);
 
 //app.use(express.bodyParser());  // DO NOT define globally, will screw up form/multi-part
+//app.use(express.limit('4mb')); // limit file upload sizes to 4mb
 app.set('views', __dirname + '/views');
 //app.set('view engine', 'ejs');
 app.set('view engine', 'jade');
