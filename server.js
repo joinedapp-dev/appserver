@@ -12,7 +12,8 @@ var async            = require('async')
   , GoogleStrategy   = require('passport-google').Strategy
   , routes           = require('./routes')
   , uploads          = require('./uploads')
-  , db               = require('./sql_db')
+  , sqldb            = require('./sql_db')
+  , nosqldb          = require('./nosql_db')
   , msg              = require('./messaging');
 
 var app = express();
@@ -133,16 +134,47 @@ msg.startEventLoop();
 // subscribers to pass on to jade template
 app.locals.subscribers = [];
 
+
+
+// XXX TO BE REMOVED LATER
+// list all nosql tables
+nosqldb.listTables(function(err, data) {
+    if (err){
+	console.log("Eror in reading list of nosql tables: " + err);
+	return;
+    }
+    if (data && data.TableNames){
+	console.log("TABLE NAMES FROM DYNAMODB ARE: " + data.TableNames);
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // sync the database 
 console.log("Syncing relational database...");
-db.sequelize.sync().complete(function(err) {
+sqldb.sequelize.sync().complete(function(err) {
     console.log("Done syncing relational database");
     if (err) {
 	console.log("Error syncing relational database");
 	throw err;
     } else {
 	// find all users
-	global.db.User.findAll().success(function(users) {
+	sqldb.User.findAll().success(function(users) {
             if (users){
 		console.log("users = '" + JSON.stringify(users, null, 4) + "'");
 		users.forEach(function(user) {

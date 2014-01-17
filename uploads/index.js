@@ -3,8 +3,8 @@ var fs      = require('fs')
   , form    = require('formidable')
   , path    = require('path')
   , Alleup  = require('alleup')
-  , AWS     = require('aws-sdk')
   , mime    = require('mime')
+  , AWS     = require('../aws')
   , msg     = require('../messaging')
   , db      = require('../sql_db');
 
@@ -19,9 +19,6 @@ fs.writeFileSync(__dirname + "/alleup_config.json", JSON.stringify(config, null,
 module.exports.config = config;
 
 // create aws S3 object
-//AWS.config.region = 'us-west-2';
-AWS.config.update({ accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
-		    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY });
 var s3 = new AWS.S3();
 
 // create alleup object
