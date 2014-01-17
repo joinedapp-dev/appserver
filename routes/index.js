@@ -8,8 +8,10 @@ module.exports.site = function(request, response) {
     if (request.user){
 	//var data = fs.readFileSync(__dirname + '/../index.html').toString();
 	//response.send(data);
+	console.log("================= RENDER HOME");
 	response.render('home.jade');
     }else{
+	console.log("================= RENDER LOGIN");
 	response.render('login.jade');
     }
 };

@@ -1,4 +1,4 @@
-// Define routes for Joinedapp RESAAT service 
+// Define routes for Joinedapp REST service 
 var async            = require('async')
   , express          = require('express')
   , http             = require('http')
@@ -6,10 +6,10 @@ var async            = require('async')
   , jade             = require('jade')
   , path             = require('path')
   , passport         = require('passport')
-  , oauthConfig      = require('./oauth.js')
   , TwitterStrategy  = require('passport-twitter').Strategy
   , FacebookStrategy = require('passport-facebook').Strategy
   , GoogleStrategy   = require('passport-google').Strategy
+  , oauthConfig      = require('./oauth')
   , routes           = require('./routes')
   , uploads          = require('./uploads')
   , sqldb            = require('./sql_db')
@@ -43,6 +43,33 @@ passport.use(new FacebookStrategy({
     //,profileUrl: "  ..... "
     //,profileFields : ['email', 'first_name', 'last_name']
 }, function(accessToken, refreshToken, profile, done) {
+    nosqldb.sessionTable.getItem({
+	signInId: profile.id,
+	signInType: 'FACEBOOK'
+    }, function(err, user){
+	if (err){
+	    console.log("Error trying to find Facebook user in NOSQL table: " + err);
+	}
+	if (!err && user!=null){
+	    done(null, user);
+	}else{
+	    nosqldb.sessionTable.putItem({
+		signInId: profile.id,
+		signInType: 'FACEBOOK',
+		oauthToken: accessToken
+	    }, function(err){
+		if (err){
+		    console.log("Error saving Facebook user to NOSQL db: " + err);
+		}else{
+		    console.log("Done saving Facebook user to NOSQL db");
+		    done(null, user);
+		}
+	    });
+	}
+    });
+}));
+
+/*					
     process.nextTick(function () {
 	console.log("FACEBOOK PROFILE      : " + JSON.stringify(profile, null, 4));
 	console.log("FACEBOOK ACCESS TOKEN : " + accessToken);
@@ -50,6 +77,8 @@ passport.use(new FacebookStrategy({
 	return done(null, profile);
     })
 }));
+*/
+
 passport.use(new GoogleStrategy({
     returnURL: oauthConfig.google.returnURL,
     realm: oauthConfig.google.realm
@@ -74,11 +103,27 @@ passport.use(new TwitterStrategy({
 }))
 	     
 passport.serializeUser(function(user, done) {
-    done(null, user);
+    console.log('serializeUser: (' + user.signInId + ',' + user.signInType + ')');
+    done(null, {
+	signInId: user.signInId, 
+	signInType: user.signInType
+    });
 });
 
 passport.deserializeUser(function(user, done) {
-    done(null, user);
+    console.log('DEserializeUser: (' + user.signInId + ',' + user.signInType + ')');
+    nosqldb.sessionTable.getItem({
+        signInId: user.signInId,
+        signInType: user.signInType
+    }, function(err, user2){
+	console.log("DONE Deserialization: " + JSON.stringify(user2, null, 4));
+        if (err){
+	    console.log("Error in deserialization: " + err);
+	    done(err, null);
+	}else{
+	    done(null, user2);
+	}
+    })
 });
 
 // websocket listen to the same address and port
@@ -100,6 +145,7 @@ app.get('/auth/facebook/callback', passport.authenticate('facebook', {
     successRedirect: '/',
     failureRedirect: '/login'
 }), function(req, res) {
+    console.log("====================== REDIRECTING to /account FROM FACEBOOK");
     res.redirect('/account');
 });
 app.get('/auth/twitter', passport.authenticate('twitter'), function(req, res){
@@ -117,7 +163,16 @@ app.get('/auth/google/callback', passport.authenticate('google', {
     res.redirect('/account');
 });
 app.get('/account', ensureAuthenticated, function(req, res){
-    res.render('account', { user: req.user });
+    nosqldb.getItem({
+	signInId: req.session.passport.signInId,
+	signInType: req.session.passport.signInType
+    }, function(err, user){
+	if (err){
+	    console.log(err);
+	}else{
+	    res.render('account', { user: user });
+	}
+    })
 });
 app.get('/logout', function(request, response){
     request.logout();
@@ -135,29 +190,51 @@ msg.startEventLoop();
 app.locals.subscribers = [];
 
 
-
-// XXX TO BE REMOVED LATER
-// list all nosql tables
-nosqldb.listTables(function(err, data) {
+/*
+// XXX XXX XXX REMOVE LATER
+nosqldb.sessionTable.describeTable(function(err, response){
     if (err){
-	console.log("Eror in reading list of nosql tables: " + err);
-	return;
-    }
-    if (data && data.TableNames){
-	console.log("TABLE NAMES FROM DYNAMODB ARE: " + data.TableNames);
+	console.log("Error in describing NOSQL table: " + err);
+    }else{
+	console.log("NOSQL Table Schema: " + JSON.stringify(response, null, 4));
     }
 });
 
+nosqldb.sessionTable.putItem({
+    signInId: 'arash@isl.stanford.edu',
+    signInType: 'EMAIL',
+    oauthToken: 'efwuhbciuvb58tbr4vybr8tgyvb8rtgyvb'
+}, function(err, response){
+    if (err){
+	throw(err);
+    }else{
+	console.log("Successfully added item in NOSQL database: " + JSON.stringify(response));
+    }
+});
 
+nosqldb.sessionTable.putItem({
+    signInId: 'arash.hassibi@gmail.com',
+    signInType: 'EMAIL',
+    oauthToken: 'efwuhbciuvb58tbr4vybr8tgyvb8rtgyvb'
+}, function(err, response){
+    if (err){
+	throw(err);
+    }else{
+	console.log("Successfully added item in NOSQL database: " + JSON.stringify(response));
+    }
+});
 
-
-
-
-
-
-
-
-
+nosqldb.sessionTable.deleteItem({
+    signInId: 'arash@isl.stanford.edu',
+    signInType: 'EMAIL'
+}, function(err, response){
+    if (err){
+	throw(err);
+    }else{
+	console.log("Successfully deleted item in NOSQL database: " + JSON.stringify(response));
+    }
+});
+*/
 
 
 
