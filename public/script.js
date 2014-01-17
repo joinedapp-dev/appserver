@@ -25,7 +25,7 @@ function setPseudo() {
 
 socket.on('newSubscribedUser', function(data){
     // add row to table
-    $('#subscriberTable tr:last').after('<tr><td>'+data.id+'</td><td>'+data.email+'</td><td>'+data.createdAt+'</td></tr><');
+    $('#subscriberTable tr:last').after('<tr><td>'+data.id+'</td><td>'+data.signInId +'</td><td>'+data.signInType+'</td><td>'+data.createdAt+'</td></tr><');
 });
 
 socket.on('nbUsers', function(msg) {

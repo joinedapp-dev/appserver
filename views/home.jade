@@ -10,6 +10,8 @@ html
       div.container
          header
             h1 A Chat application with Node.js and Socket.io
+         p
+            a(href="/logout") Logout
          input(type='text')#pseudoInput
          button#pseudoSet Set Pseudo
          div#chatEntries
@@ -36,13 +38,15 @@ html
              img#uploadedImage
          table(class="table table-striped")#subscriberTable
            thead
-             th Userid
-             th Email
+             th Id
+             th SignInId
+             th SignInType
              th Updated
            tbody
              - for (var i=0; i<subscribers.length; i++){
                 tr
                      td= subscribers[i].id
-                     td= subscribers[i].email
+                     td= subscribers[i].signInId
+                     td= subscribers[i].signInType
                      td= subscribers[i].createdAt
              - }

@@ -7,9 +7,14 @@ module.exports.create = function(server){
 
 module.exports.io = io;
 
-module.exports.updateTable = function(id, email, createdAt){
+module.exports.updateTable = function(id, signInId, signInType, createdAt){
     console.log("Sending message to updateTable on website");
-    io.sockets.emit('newSubscribedUser', {id: id, email: email, createdAt: createdAt});
+    io.sockets.emit('newSubscribedUser', {
+	id: id, 
+	signInId: signInId,
+	signInType: signInType,
+	createdAt: createdAt
+    });
 };
 
 module.exports.updateFileSubmissionProgress = function(percentage){

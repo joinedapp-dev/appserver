@@ -2,12 +2,16 @@
 var ph      = require('password-hash')
   , fs      = require('fs')
   , msg     = require('../messaging')
-  , db      = require('../relational_db');
+  , db      = require('../sql_db');
 
 module.exports.site = function(request, response) {
-    //var data = fs.readFileSync(__dirname + '/../index.html').toString();
-    //response.send(data);
-    response.render('home.jade');
+    if (request.user){
+	//var data = fs.readFileSync(__dirname + '/../index.html').toString();
+	//response.send(data);
+	response.render('home.jade');
+    }else{
+	response.render('login.jade');
+    }
 };
 
 module.exports.all_users = function(request, response) {
@@ -17,7 +21,12 @@ module.exports.all_users = function(request, response) {
 	    var users_json = [];
 	    console.log("users = '" + JSON.stringify(users, null, 4) + "'");
 	    users.forEach(function(user) {
-		users_json.push({id: user.id, email: user.email, password: ph.generate(user.password)});
+		users_json.push({
+		    id: user.id, 
+		    signInId: user.signInId, 
+		    password: ph.generate(user.password),
+		    signInType: user.signInType
+		});
 	    });
 	    // Uses views/users.ejs
 	    //response.render("users", {users: users_json});
@@ -38,19 +47,21 @@ module.exports.all_users = function(request, response) {
 
 
 module.exports.get_user = function(request, response) {
-    console.log("Inside GET /user/:email");
-    console.log("email = " + request.params.email);
-    if (request.params.email){
+    console.log("Inside GET /user/:signInId/:signInType");
+    console.log("SignInId = " + request.params.signInId);
+    console.log("SignInType = " + request.params.signInType);
+    if (request.params.signInId && request.params.signInType){
 	global.db.User.find({
 	    where: {
-		email: request.params.email
+		signInId: request.params.signInId,
+		signInType: request.params.signInType
 	    }
 	}).success(function(user) {
             var users_json = [];
             if (user)
 	    {
 		console.log("user = '" + JSON.stringify(user, null, 4) + "'");
-		users_json.push({id: user.id, email: user.email, password: user.password});
+		users_json.push({id: user.id, signInId: user.signInId, signInType: user.signInType, password: user.password});
 		response.send(users_json);
 	    }else{
 		response.send("[]");
@@ -65,18 +76,19 @@ module.exports.get_user = function(request, response) {
             //response.send("error retrieving users");
 	});
     }else{
-	response.send("Error: GET missing email");
+	response.send("Error: GET missing signInType/signInId pair");
     }
 };
 
 module.exports.add_user = function(request, response) {
     console.log("Inside POST /user");
-    console.log("email = " + request.body.email);
+    console.log("email = " + request.body.signInId);
     console.log("password = " + request.body.password);
     console.log("body = " + JSON.stringify(request.body, null, 4));
-    if (request.body.email && request.body.password){
+    if (request.body.signInId && request.body.password){
 	global.db.User.create({
-            email: request.body.email,
+            signInId: request.body.signInId,
+	    signInType: 'EMAIL',
 	    password: ph.generate(request.body.password)
 	}).error(function(err) {
             console.log(err);
@@ -92,11 +104,12 @@ module.exports.add_user = function(request, response) {
 	    // ... first query mysql table
 	    global.db.User.find({
 		where: {
-		    email: request.body.email
+		    signInId: request.body.signInId,
+		    signInType: request.body.signInType
 		}
             }).success(function(user) {
 		if (user){
-		    msg.updateTable(user.id, user.email, user.createdAt);
+		    msg.updateTable(user.id, user.signInId, user.signInType, user.createdAt);
 		}
 	    });
 	});
@@ -107,16 +120,18 @@ module.exports.add_user = function(request, response) {
 
 module.exports.update_user = function(request, response) {
     console.log("Inside PUT /user");
-    console.log("email = " + request.body.email);
+    console.log("signInId = " + request.body.signInId);
+    console.log("signInType = " + request.body.signInType);
     console.log("password = " + request.body.password);
     console.log("body = " + JSON.stringify(request.body, null, 4));
-    if (request.body.email && request.body.password){
+    if (request.body.signInId && request.body.signInType && request.body.password){
         global.db.User.update(
 	    {
 		password: ph.generate(request.body.password)
 	    },
 	    {
-		email: request.body.email
+		signInId: request.body.signInId,
+		signInType: request.body.signInType
 	    }
 	).error(function(err){
 	    console.log(err);
@@ -128,18 +143,20 @@ module.exports.update_user = function(request, response) {
 	});
 	response.send("PUT OK");
     }else{
-        response.send("Error: PUT missing email and/or password");
+        response.send("Error: PUT missing signInId, signInType, and/or password");
     }
 };
 
 module.exports.delete_user = function(request, response) {
     console.log("Inside DELETE /user");
-    console.log("email = " + request.body.email);
+    console.log("signInId = " + request.body.signInId);
+    console.log("signInType = " + request.body.signInType);
     console.log("body = " + JSON.stringify(request.body, null, 4));
-    if (request.body.email){
+    if (request.body.signInId && request.body.signInType){
         global.db.User.destroy(
             {
-                email: request.body.email
+		signInType: request.body.sigInType,
+                signInId: request.body.signInId
             }
         ).error(function(err){
             console.log(err);
@@ -151,7 +168,7 @@ module.exports.delete_user = function(request, response) {
         });
         response.send("DELETE OK");
     }else{
-        response.send("Error: DELETE missing email");
+        response.send("Error: DELETE missing signInId and/or signInType");
     }
 };
 

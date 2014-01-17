@@ -6,14 +6,17 @@ module.exports = function(sequelize, DataTypes) {
 	    autoIncrement: true,
             primaryKey: true
 	},
-	email: {
+	signInId: {
 	    type: DataTypes.STRING,
-	    uniqueKey: true,
+	    allowNull: false
+	},
+	signInType: {
+	    type: DataTypes.ENUM('FACEBOOK', 'GOOGLE', 'TWITTER', 'EMAIL'),
 	    allowNull: false
 	},
 	password: {
 	    type: DataTypes.STRING,
-	    allowNull: false
+	    allowNull: true
 	}
     });	
 };

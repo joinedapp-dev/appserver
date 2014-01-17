@@ -6,7 +6,7 @@ var fs      = require('fs')
   , AWS     = require('aws-sdk')
   , mime    = require('mime')
   , msg     = require('../messaging')
-  , db      = require('../relational_db');
+  , db      = require('../sql_db');
 
 
 // create config file for uploading to S3 bucket
