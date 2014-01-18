@@ -57,6 +57,9 @@ app.post('/login', express.bodyParser(), auth.auth_local, function(req, res) {
     console.log("============COMPLETED POST /login");
     res.redirect('/');
 });
+app.get('/login_fail', function(req, res){
+    res.render('login_fail');
+});
 app.get('/auth/facebook', auth.auth_facebook, function(req, res){
 });
 app.get('/auth/facebook/callback', auth.callback_facebook, function(req, res) {

@@ -120,21 +120,19 @@ passport.use(new LocalStrategy({
 	}
 	if (!user){
 	    console.log("=================Email not found");
-	    return done(null, {info: 'Incorrect email.'});
+	    return done(null, false, {message: 'Incorrect email.'});
 	}
 	ph(password, user.salt, function(err, hash){
-	    console.log(">>>>>>>>>>>>>> ENTERED    : " + hash);
-	    console.log(">>>>>>>>>>>>>> SAVED IN DB: " + user.authToken);
 	    if (err){
 		console.log("Error in computing hash of password");
-		return done(null, {info: 'Sorry.  Something bad happened, password hash calculation failed'});
+		return done(null, false, {message: 'Sorry.  Something bad happened, password hash calculation failed'});
 	    }
 	    if (hash == user.authToken){
 		console.log("==================Correct match");
 		return done(null, user);
 	    }
 	    console.log("==================== Incorrect password");
-	    return done(null, { info: 'Incorrect password'});
+	    return done(null, false, {message: 'Incorrect password'});
 	});
     })
 }));
@@ -171,7 +169,6 @@ module.exports.register_account = function(req, res){
 		}
 		console.log("PUT ITEM WAS SUCCESSFUL IN REGISTRATION");
 		passport.authenticate('local')(req, res, function(){
-		    console.log("====================== INSIDE authentication LOCAL");
 		    res.redirect('/');
 		});
 	    })
@@ -179,13 +176,10 @@ module.exports.register_account = function(req, res){
     });
 }
 
-module.exports.auth_local = function(req, res){
-    return passport.authenticate('local')(req, res, function(){
-	console.log("XXXXXXX INSIDE auth_local");
-	res.redirect('/');
-    });
-}
-
+module.exports.auth_local = passport.authenticate('local', {
+    failureRedirect: '/login_fail',
+    successRedirect: '/'
+});
 
 // passport stratgies for OAuth
 passport.use(new FacebookStrategy({
@@ -212,7 +206,6 @@ passport.use(new GoogleStrategy({
 }, createGoogleUserSession()));
 
 passport.serializeUser(function(user, done) {
-    console.log('serializeUser: (' + user.signInId + ',' + user.signInType + ')');
     done(null, {
 	signInId: user.signInId, 
 	signInType: user.signInType
@@ -220,16 +213,15 @@ passport.serializeUser(function(user, done) {
 });
 
 passport.deserializeUser(function(user, done) {
-    console.log('DEserializeUser: (' + user.signInId + ',' + user.signInType + ')');
     nosqldb.sessionTable.getItem({
         signInId: user.signInId,
         signInType: user.signInType
     }, function(err, user2){
-	console.log("DONE Deserialization: " + JSON.stringify(user2, null, 4));
         if (err){
 	    console.log("Error in deserialization: " + err);
 	    done(err, null);
 	}else{
+	    console.log("deserialize: " + JSON.stringify(user2, null, 4));
 	    done(null, user2);
 	}
     })
