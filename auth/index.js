@@ -5,7 +5,7 @@ var passport         = require('passport')
   , FacebookStrategy = require('passport-facebook').Strategy
   , LinkedInStrategy = require('passport-linkedin').Strategy
   , GoogleStrategy   = require('passport-google').Strategy
-  , ph               = require('password-hash')
+  , ph               = require('../utils/hash.js')
   , nosqldb          = require('../nosql_db');
 
 var ids = {
@@ -59,7 +59,8 @@ var createUserSession = function(oauth_method){
 		nosqldb.sessionTable.putItem({
 		    signInId: getId(oauth_method, profile),
 		    signInType: oauth_method,
-		    authToken: accessToken
+		    authToken: accessToken,
+	            salt: "NA"
 		}, function(err){
 		    if (err){
 			console.log("Error saving " + oauth_method + " user to NOSQL db: " + err);
@@ -88,7 +89,8 @@ var createGoogleUserSession = function(){
 		nosqldb.sessionTable.putItem({
 		    signInId: profile.identifier,
 		    signInType: 'GOOGLE',
-		    authToken: 'NA'
+		    authToken: 'NA',
+	            salt: 'NA'
 		}, function(err){
 		    if (err){
 			console.log("Error saving GOOGLE user to NOSQL db: " + err);
@@ -103,8 +105,10 @@ var createGoogleUserSession = function(){
 }    
 
 // passport strategy for local email/password
-// passport config
-passport.use(new LocalStrategy(function(email, password, done){
+passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password'
+}, function(email, password, done){
     console.log("===================INSIDE localstrategy");
     nosqldb.sessionTable.getItem({
 	signInId: email,
@@ -116,17 +120,25 @@ passport.use(new LocalStrategy(function(email, password, done){
 	}
 	if (!user){
 	    console.log("=================Email not found");
-	    return done(null, false, {info: 'Incorrect email.'});
+	    return done(null, {info: 'Incorrect email.'});
 	}
-	if (ph.validate(ph.generate(password), user.authToken)){
-	    console.log("==================Correct match");
-	    return done(null, user);
-	}
-	console.log("==================== Incorrect password");
-	return done(null, false, { info: 'Incorrect password'});
+	ph(password, user.salt, function(err, hash){
+	    console.log(">>>>>>>>>>>>>> ENTERED    : " + hash);
+	    console.log(">>>>>>>>>>>>>> SAVED IN DB: " + user.authToken);
+	    if (err){
+		console.log("Error in computing hash of password");
+		return done(null, {info: 'Sorry.  Something bad happened, password hash calculation failed'});
+	    }
+	    if (hash == user.authToken){
+		console.log("==================Correct match");
+		return done(null, user);
+	    }
+	    console.log("==================== Incorrect password");
+	    return done(null, { info: 'Incorrect password'});
+	});
     })
 }));
-	
+
 module.exports.register_account = function(req, res){
     console.log("REGISTER POST: " + JSON.stringify(req.body, null, 4));
     nosqldb.sessionTable.getItem({
@@ -141,30 +153,39 @@ module.exports.register_account = function(req, res){
 	    return res.render("register", {info: "Sorry.  That email is already in use"});
 	}
 	console.log("=============" + req.body.email);
-	console.log("=============" + ph.generate(req.body.password));
-	nosqldb.sessionTable.putItem({
-	    signInId: req.body.email,
-	    signInType: 'EMAIL',
-	    authToken: ph.generate(req.body.password)
-	}, function(err, user2){
+	ph(req.body.password, function(err, salt, hash){
 	    if (err){
-		console.log("Error trying to add user to NOSQL table: " + err);
-		return res.render("register", {info: "Empty email/password. Please enter email and password"});
+		console.log("Error computing hash of password: " + err);
+		return res.render("register", {info: "Sorry something is wrong.  Failed computing hash."});
 	    }
-	    console.log("PUT ITEM WAS SUCCESSFUL IN REGISTRATION");
-	    passport.authenticate('local', function(err){
-		console.log("AUTHENTICATE IS DONE");
-	    });
-	    res.render("login");
-	    
+	    console.log("=============" + hash);
+	    nosqldb.sessionTable.putItem({
+		signInId: req.body.email,
+		signInType: 'EMAIL',
+		authToken: hash,
+                salt: salt
+	    }, function(err, user2){
+		if (err){
+		    console.log("Error trying to add user to NOSQL table: " + err);
+		    return res.render("register", {info: "Empty email/password. Please enter email and password"});
+		}
+		console.log("PUT ITEM WAS SUCCESSFUL IN REGISTRATION");
+		passport.authenticate('local')(req, res, function(){
+		    console.log("====================== INSIDE authentication LOCAL");
+		    res.redirect('/');
+		});
+	    })
 	})
-    })
+    });
 }
 
-module.exports.auth_local = function(){
-    console.log("INSIDE auth_local");
-    return passport.authenticate('local');
+module.exports.auth_local = function(req, res){
+    return passport.authenticate('local')(req, res, function(){
+	console.log("XXXXXXX INSIDE auth_local");
+	res.redirect('/');
+    });
 }
+
 
 // passport stratgies for OAuth
 passport.use(new FacebookStrategy({

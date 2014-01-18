@@ -53,7 +53,8 @@ app.get('/register', function(req, res) {
 
 // routes for authentication and registration
 app.post('/register', express.bodyParser(), auth.register_account);
-app.post('/login', auth.auth_local, function(req, res) {
+app.post('/login', express.bodyParser(), auth.auth_local, function(req, res) {
+    console.log("============COMPLETED POST /login");
     res.redirect('/');
 });
 app.get('/auth/facebook', auth.auth_facebook, function(req, res){

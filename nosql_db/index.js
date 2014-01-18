@@ -11,7 +11,8 @@ var sessionSchema = new DynamoDBModel.Schema({
 	type: String,
 	key: 'range'
     },
-    authToken: String
+    authToken: String,
+    salt: String
 });
 
 var sessionTable = new DynamoDBModel.Model(process.env.NOSQL_CLIENT_TABLE_NAME, 
