@@ -1,8 +1,6 @@
 var AWS     = require('../aws');
 var DynamoDBModel = require('dynamodb-model');
 
-//var dynamoDb = new AWS.DynamoDB();
-
 // schema to hold oauth session info
 var sessionSchema = new DynamoDBModel.Schema({
     signInId: {
@@ -13,17 +11,8 @@ var sessionSchema = new DynamoDBModel.Schema({
 	type: String,
 	key: 'range'
     },
-    oauthToken: String
+    authToken: String
 });
-
-/*
-var ss = sessionSchema.mapToDb({
-    signInId: 'arash@isl.stanford.edu',
-    signInType: 'EMAIL',
-    oauthToken: '438v345rotv25b29vb2598yvb58vub98tvb29tbroiguvbet'
-});
-console.log("============ MAP TO DB: " + JSON.stringify(ss));
-*/
 
 var sessionTable = new DynamoDBModel.Model(process.env.NOSQL_CLIENT_TABLE_NAME, 
 					   sessionSchema, {

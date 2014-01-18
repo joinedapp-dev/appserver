@@ -11,7 +11,7 @@ module.exports = function(sequelize, DataTypes) {
 	    allowNull: false
 	},
 	signInType: {
-	    type: DataTypes.ENUM('FACEBOOK', 'GOOGLE', 'TWITTER', 'EMAIL'),
+	    type: DataTypes.ENUM('FACEBOOK', 'GOOGLE', 'TWITTER', 'LINKEDIN', 'EMAIL'),
 	    allowNull: false
 	},
 	password: {
@@ -21,14 +21,3 @@ module.exports = function(sequelize, DataTypes) {
     });	
 };
     
-/*
-
-module.exports = function(sequelize, DataTypes) {
-  return sequelize.define("Order", {
-    coinbase_id: {type: DataTypes.STRING, unique: true, allowNull: false},
-    amount: {type: DataTypes.FLOAT},
-    time: {type: DataTypes.STRING, allowNull: false}
-  });
-};
-*/
-

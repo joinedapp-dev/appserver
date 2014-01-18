@@ -1,8 +1,11 @@
 // dependencies
 var passport         = require('passport')
+  , LocalStrategy    = require('passport-local').Strategy
   , TwitterStrategy  = require('passport-twitter').Strategy
   , FacebookStrategy = require('passport-facebook').Strategy
+  , LinkedInStrategy = require('passport-linkedin').Strategy
   , GoogleStrategy   = require('passport-google').Strategy
+  , ph               = require('password-hash')
   , nosqldb          = require('../nosql_db');
 
 var ids = {
@@ -16,6 +19,11 @@ var ids = {
 	consumerSecret: process.env.TWITTER_CONSUMER_SECRET, 
 	callbackURL: "http://" + process.env.JOINEDAPP_HOSTNAME + ":" + process.env.JOINEDAPP_PORT + "/auth/twitter/callback"
     },
+    linkedin: {
+	apiKey: process.env.LINKEDIN_API_KEY,
+	secretKey: process.env.LINKEDIN_SECRET_KEY,
+	callbackURL: "http://" + process.env.JOINEDAPP_HOSTNAME + ":" + process.env.JOINEDAPP_PORT + "/auth/linkedin/callback"
+    },
     google: {
 	returnURL: "http://" + process.env.JOINEDAPP_HOSTNAME + ":" + process.env.JOINEDAPP_PORT + "/auth/google/callback",
 	realm: "http://" + process.env.JOINEDAPP_HOSTNAME + ":" + process.env.JOINEDAPP_PORT
@@ -28,6 +36,8 @@ var getId = function(oauth_method, profile){
     }else if(oauth_method=='GOOGLE'){
 	return profile.identifier;
     }else if(oauth_method=='TWITTER'){
+	return profile.id;
+    }else if(oauth_method=='LINKEDIN'){
 	return profile.id;
     }else{
 	throw("Error: Unsupported OAuth service");
@@ -49,7 +59,7 @@ var createUserSession = function(oauth_method){
 		nosqldb.sessionTable.putItem({
 		    signInId: getId(oauth_method, profile),
 		    signInType: oauth_method,
-		    oauthToken: accessToken
+		    authToken: accessToken
 		}, function(err){
 		    if (err){
 			console.log("Error saving " + oauth_method + " user to NOSQL db: " + err);
@@ -78,7 +88,7 @@ var createGoogleUserSession = function(){
 		nosqldb.sessionTable.putItem({
 		    signInId: profile.identifier,
 		    signInType: 'GOOGLE',
-		    oauthToken: 'NA'
+		    authToken: 'NA'
 		}, function(err){
 		    if (err){
 			console.log("Error saving GOOGLE user to NOSQL db: " + err);
@@ -92,6 +102,69 @@ var createGoogleUserSession = function(){
     }
 }    
 
+// passport strategy for local email/password
+// passport config
+passport.use(new LocalStrategy(function(email, password, done){
+    console.log("===================INSIDE localstrategy");
+    nosqldb.sessionTable.getItem({
+	signInId: email,
+	signInType: 'EMAIL'
+    }, function(err, user){
+	if (err){
+	    console.log("Error trying to find EMAIL user in NOSQL table: " + err);
+	    done(err);
+	}
+	if (!user){
+	    console.log("=================Email not found");
+	    return done(null, false, {info: 'Incorrect email.'});
+	}
+	if (ph.validate(ph.generate(password), user.authToken)){
+	    console.log("==================Correct match");
+	    return done(null, user);
+	}
+	console.log("==================== Incorrect password");
+	return done(null, false, { info: 'Incorrect password'});
+    })
+}));
+	
+module.exports.register_account = function(req, res){
+    console.log("REGISTER POST: " + JSON.stringify(req.body, null, 4));
+    nosqldb.sessionTable.getItem({
+	signInId: req.body.email,
+	signInType: 'EMAIL'
+    }, function(err, user){
+	if (err){
+	    console.log("Error trying to find user in NOSQL table: " + err);
+	    return res.render("register", {info: "Something bad happened... error trying to access database"});
+	}
+	if (user){
+	    return res.render("register", {info: "Sorry.  That email is already in use"});
+	}
+	console.log("=============" + req.body.email);
+	console.log("=============" + ph.generate(req.body.password));
+	nosqldb.sessionTable.putItem({
+	    signInId: req.body.email,
+	    signInType: 'EMAIL',
+	    authToken: ph.generate(req.body.password)
+	}, function(err, user2){
+	    if (err){
+		console.log("Error trying to add user to NOSQL table: " + err);
+		return res.render("register", {info: "Empty email/password. Please enter email and password"});
+	    }
+	    console.log("PUT ITEM WAS SUCCESSFUL IN REGISTRATION");
+	    passport.authenticate('local', function(err){
+		console.log("AUTHENTICATE IS DONE");
+	    });
+	    res.render("login");
+	    
+	})
+    })
+}
+
+module.exports.auth_local = function(){
+    console.log("INSIDE auth_local");
+    return passport.authenticate('local');
+}
 
 // passport stratgies for OAuth
 passport.use(new FacebookStrategy({
@@ -100,17 +173,22 @@ passport.use(new FacebookStrategy({
     callbackURL: ids.facebook.callbackURL
 }, createUserSession('FACEBOOK')));
 
-
-passport.use(new GoogleStrategy({
-    returnURL: ids.google.returnURL,
-    realm: ids.google.realm
-}, createGoogleUserSession()));
-
 passport.use(new TwitterStrategy({
     consumerKey:    ids.twitter.consumerKey,
     consumerSecret: ids.twitter.consumerSecret,
     callbackURL:    ids.twitter.callbackURL
 }, createUserSession('TWITTER')));
+
+passport.use(new LinkedInStrategy({
+    consumerKey:    ids.linkedin.apiKey,
+    consumerSecret: ids.linkedin.secretKey,
+    callbackURL:    ids.linkedin.callbackURL
+}, createUserSession('LINKEDIN')));
+
+passport.use(new GoogleStrategy({
+    returnURL: ids.google.returnURL,
+    realm: ids.google.realm
+}, createGoogleUserSession()));
 
 passport.serializeUser(function(user, done) {
     console.log('serializeUser: (' + user.signInId + ',' + user.signInType + ')');
@@ -142,21 +220,20 @@ module.exports.initialize = function(app){
 }
 module.exports.auth_facebook = passport.authenticate('facebook');
 module.exports.callback_facebook = passport.authenticate('facebook', { 
-    successRedirect: '/',
-    failureRedirect: '/login'
+    failureRedirect: '/'
 });
 
 module.exports.auth_twitter = passport.authenticate('twitter');
 module.exports.callback_twitter = passport.authenticate('twitter', { 
-    successRedirect: '/',
-    failureRedirect: '/login' 
+    failureRedirect: '/' 
+});
+
+module.exports.auth_linkedin = passport.authenticate('linkedin');
+module.exports.callback_linkedin = passport.authenticate('linkedin', { 
+    failureRedirect: '/' 
 });
 
 module.exports.auth_google = passport.authenticate('google');
 module.exports.callback_google = passport.authenticate('google', { 
-    successRedirect: '/',
-    failureRedirect: '/login'
+    failureRedirect: '/'
 });
-
-
-

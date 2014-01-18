@@ -1,4 +1,4 @@
-// Define routes for Joinedapp REST service 
+// Define routes for OAJoinedapp REST service 
 var async            = require('async')
   , express          = require('express')
   , http             = require('http')
@@ -6,7 +6,7 @@ var async            = require('async')
   , jade             = require('jade')
   , path             = require('path')
   , routes           = require('./routes')
-  , oauth            = require('./oauth')
+  , auth            = require('./auth')
   , uploads          = require('./uploads')
   , sqldb            = require('./sql_db')
   , nosqldb          = require('./nosql_db')
@@ -21,13 +21,17 @@ app.set('views', __dirname + '/views');
 //app.set('view engine', 'ejs');
 app.set('view engine', 'jade');
 app.set("view options", { layout: false });
-app.configure(function() {
+app.configure('development', function() {
     app.use(express.static(__dirname + '/public'));
     app.use(express.cookieParser());
     app.use(express.session({ secret: 'keyboard cat' }));
-    oauth.initialize(app);
+    auth.initialize(app);
     app.use(app.router);
     app.set('port', process.env.PORT || process.env.JOINEDAPP_PORT);
+});
+
+app.configure('production', function(){
+    app.use(express.errorHandler());
 });
 
 // websocket listen to the same address and port
@@ -42,34 +46,49 @@ app.post('/upload', uploads.add_file);  // form.muti-part do not use bodyParser
 app.get(path.resolve("/" + uploads.config.storage.dir.path + ':filename'), express.bodyParser(), uploads.get_file);
 app.put('/user', express.bodyParser(), routes.update_user);
 app.delete('/user', express.bodyParser(), routes.delete_user);
-// for authentication
-app.get('/auth/facebook', oauth.auth_facebook, function(req, res){
+
+app.get('/register', function(req, res) {
+    res.render('register', { });
 });
-app.get('/auth/facebook/callback', oauth.callback_facebook, function(req, res) {
+
+// routes for authentication and registration
+app.post('/register', express.bodyParser(), auth.register_account);
+app.post('/login', auth.auth_local, function(req, res) {
+    res.redirect('/');
+});
+app.get('/auth/facebook', auth.auth_facebook, function(req, res){
+});
+app.get('/auth/facebook/callback', auth.callback_facebook, function(req, res) {
     console.log("====================== REDIRECTING to /account FROM FACEBOOK");
     res.redirect('/account');
 });
-app.get('/auth/twitter', oauth.auth_twitter, function(req, res){
+app.get('/auth/twitter', auth.auth_twitter, function(req, res){
 });
-app.get('/auth/twitter/callback', oauth.callback_twitter, function(req, res){
+app.get('/auth/twitter/callback', auth.callback_twitter, function(req, res){
     console.log("======================== REDIRECTING TO /account FROM TWITTER");
     res.redirect('/account');
 });
-app.get('/auth/google', oauth.auth_google, function(req, res){
+app.get('/auth/linkedin', auth.auth_linkedin, function(req, res){
 });
-app.get('/auth/google/callback', oauth.callback_google, function(req, res) {
+app.get('/auth/linkedin/callback', auth.callback_linkedin, function(req, res){
+    console.log("======================== REDIRECTING TO /account FROM LINKEDIN");
+    res.redirect('/account');
+});
+app.get('/auth/google', auth.auth_google, function(req, res){
+});
+app.get('/auth/google/callback', auth.callback_google, function(req, res) {
     console.log("======================== REDIRECTING TO /account FROM GOOGLE");
     res.redirect('/account');
 });
 app.get('/account', ensureAuthenticated, function(req, res){
-    nosqldb.getItem({
+    nosqldb.sessionTable.getItem({
 	signInId: req.session.passport.signInId,
 	signInType: req.session.passport.signInType
     }, function(err, user){
 	if (err){
 	    console.log(err);
 	}else{
-	    res.render('account', { user: user });
+	    res.redirect('/');
 	}
     })
 });
@@ -115,6 +134,7 @@ sqldb.sequelize.sync().complete(function(err) {
 });
 
 function ensureAuthenticated(req, res, next) {
+    console.log("===================== CHECKING FOR AUTHENTICATION!");
     if (req.isAuthenticated()) { return next(); }
     res.redirect('/')
 }

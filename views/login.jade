@@ -8,11 +8,27 @@ html
       div.container
          header
             h1 Login JoinedApp
+            form(role='form', action="/login",method="post", style='max-width: 300px;')
+              .form-group
+                input.form-control(type='text', name="email", placeholder='Enter email')
+              .form-group
+                input.form-control(type='password', name="password", placeholder='Password')
+              button.btn.btn-default(type='submit') Submit
+              a(href='/')
+                button.btn.btn-primary(type="button") Cancel
             br
             a(href="/auth/facebook") Sign in with Facebook
             br
             a(href="/auth/google") Sign in with Google
             br
             a(href="/auth/twitter") Sign in with Twitter
+            br
+            a(href="/auth/linkedin") Sign in with LinkedIn
+            br
+            br
+            a(href="/Register") Register with your email
+            br
+            br  
+            h4= info
    script(src='http://code.jquery.com/jquery.js')
    script(src='js/bootstrap.min.js')
