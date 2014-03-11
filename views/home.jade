@@ -2,6 +2,8 @@ doctype html
 html
    head
       title Chat
+      meta(name='viewport', content='width=device-width, initial-scale=1.0')
+      link(href='/css/bootstrap.min.css', rel='stylesheet', media='screen')
       script(src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js')
       script(src='http://malsup.github.com/jquery.form.js')
       script(src="/socket.io/socket.io.js")
@@ -12,16 +14,16 @@ html
             h1 A Chat application with Node.js and Socket.io
          p
             a(href="/logout") Logout
-         input(type='text')#pseudoInput
-         button#pseudoSet Set Pseudo
+         input.form-control(type='text', placeholder='Pseudo')#pseudoInput
+         button.btn.btn-primary#pseudoSet Set Pseudo
          div#chatEntries
          div#chatControls
-            input(type='text')#messageInput
-            button#submit Send
+            input.form-control(type='text')#messageInput
+            button.btn.btn-primary#submit Send
          div#nbUsersDiv
             p Number of connected user(s):
                span#nbUsers
-
+      div.container
          #loader 
 
          #preview 
@@ -29,11 +31,10 @@ html
          #base64 
 
          form(action="/upload" method="post" enctype="multipart/form-data")#uploadForm
-             input(type="text" name="title")
+             input.form-control(type="text" name="title", placeholder='Title')
              br
-             input(type="file" name="upload")#userPhotoInput
-             br  
-             input(type="submit" value="Upload")
+             input.form-control(type="file" name="upload")#userPhotoInput
+             button.btn.btn-primary(type="submit" value="Upload") Upload
              span#uploadStatus
              img#uploadedImage
          table(class="table table-striped")#subscriberTable
